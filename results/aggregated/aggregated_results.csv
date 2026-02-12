@@ -1,0 +1,3 @@
+mode,n_agents,tts_median_s,tts_runs,overhead_p95_median_ms
+baseline,1,0.034679,1,2.972
+ray,1,0.033588,1,1.719
