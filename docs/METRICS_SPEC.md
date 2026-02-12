@@ -1,23 +1,26 @@
-# Metrics Spec (raw_results.csv)
+# METRICS_SPEC.md
+Описание всех метрик, собираемых в эксперименте
 
-CSV path: results/raw/raw_results.csv
+## Структура данных raw_results.csv
 
-## Columns
-- run_id: unique run identifier (string)
-- mode: "ray" | "baseline"
-- n_agents: number of agents (int)
-- repeat_id: repeat index (int)
-- seed: RNG seed (int)
-- task_id: unique task id inside run (string/int)
-- submit_ts: perf_counter timestamp when task submitted (float, seconds)
-- start_ts: perf_counter timestamp when task started (float, seconds)
-- end_ts: perf_counter timestamp when task finished (float, seconds)
-- task_duration_s: end_ts - start_ts (float, seconds)
-- sched_overhead_ms: (start_ts - submit_ts) * 1000 (float, ms)
-- cpu_avg_pct: optional, average CPU utilization during task/run (float)
-- gpu_avg_pct: optional, average GPU utilization during task/run (float)
-- failed: 0/1 whether task failed (int)
-- recovery_time_s: optional, failure recovery time if injected (float)
+- run_id — уникальный идентификатор прогона
+- mode — режим эксперимента (ray / baseline)
+- n_agents — количество агентов в прогоне
+- repeat_id — номер повторения (1..5)
+- seed — фиксированный seed
+- task_id — ID задачи внутри прогона
+- submit_ts — время отправки задачи
+- start_ts — время начала выполнения
+- end_ts — время завершения
+- task_duration_s = end_ts - start_ts
+- sched_overhead_ms = (start_ts - submit_ts) * 1000
+- cpu_avg_pct — средняя загрузка CPU
+- gpu_avg_pct — средняя загрузка GPU
+- failed — 0/1
+- recovery_time_s — если был отказ
 
-## Run-level TTS
+## Формулы
+
 TTS(run_id) = max(end_ts) - min(submit_ts)
+
+Speedup(N) = TTS(baseline_N) / TTS(ray_N)
