@@ -1,13 +1,13 @@
 import time
 
 def mark_submit():
-    return time.time()
+    return time.perf_counter()
 
 def mark_start():
-    return time.time()
+    return time.perf_counter()
 
 def mark_end():
-    return time.time()
+    return time.perf_counter()
 
 def duration(start, end):
     return end - start

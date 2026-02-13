@@ -1,56 +1,71 @@
-# AI-HPC Experiment (Ray + KubeRay + Slurm)
+# AI-HPC Experiment (Scenario V: Autoscaling)
 
 ## Goal
-Evaluate scalability and orchestration efficiency for agent-based AI workloads when scaling from 1 to 16 agents.
+Quantitatively evaluate benefits of Ray-based orchestration for agent workloads
+against a sequential baseline under dynamic growth of task count.
 
-## Team Roles
-- A (Infra): environment + run scripts + reproducibility
-- B (Metrics): telemetry + raw data collection
-- C (Analysis): aggregation + plots + report
-
-## Project Structure
-- `docs/` — protocol and metric specs
-- `scripts/` — orchestration scripts
-- `src/runner/` — run logic
-- `src/metrics/` — validation and metric helpers
-- `src/analysis/` — analysis/plots
-- `results/` — raw, aggregated, figures
-
-## Quick Start
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -U pip -r requirements.txt
-bash scripts/run_experiments.sh
-python src/metrics/validate.py
-python src/analysis/analyze.py
-
-nano docs/EXPERIMENT_PROTOCOL.md
-# Experiment Protocol (Scenario V: Autoscaling)
-
-## Goal
-Quantitatively evaluate Ray/KubeRay autoscaling benefits for agent workloads vs baseline (no Ray).
-
-## Scenarios
-We implement Scenario V (Autoscaling): increase agents from 1 to 16.
-
-## Parameters (Fixed)
-- N agents: 1, 2, 4, 8, 12, 16
-- Repeats per point: 5
-- Modes: ray, baseline
-- Seed: 42
-- Workload: fixed synthetic compute task (same size across runs)
+## Experiment Scope
+- Scenario V only: autoscaling stress from 10 to 1000 tasks.
+- Modes: `baseline` and `ray`.
+- Repeats per point: 5.
+- Same synthetic compute workload for both modes.
 
 ## KPIs
-- TTS (Time-to-Solution)
-- Speedup
-- Efficiency
-- Scheduling Overhead (p50/p95)
-- CPU/GPU utilization (optional if available)
-- Failure recovery time (optional injection at N=8 and N=16)
+- Time-to-Solution (TTS).
+- Speedup (`TTS_baseline / TTS_ray`) for the same task count.
+- Scheduling overhead (p50 / p95).
+- Resource utilization (CPU / GPU average).
+- Failure recovery time when failure injection is enabled.
 
-## Data outputs
-- Raw per-task metrics: results/raw/raw_results.csv
-- Aggregated metrics: results/aggregated/aggregated_results.csv
-- Figures: results/figures/
+## Repo Layout
+- `docs/` protocol and metric specification.
+- `scripts/` orchestration scripts.
+- `src/runner/` single experiment run logic.
+- `src/metrics/` validation helpers.
+- `src/analysis/` aggregation and plotting.
+- `results/` generated experiment outputs.
+
+## Quick Start
+Recommended Python for full `ray` flow: `3.10-3.12`.
+If `ray` is unavailable (for example on Python 3.13), `--mode ray` falls back
+to local process-based parallel execution so the pipeline can still run end-to-end.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -U pip -r requirements.txt
+make all
+```
+
+Windows PowerShell:
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -U pip -r requirements.txt
+python src/runner/run_single.py --mode baseline --n-tasks 10 --repeat-id 1 --seed 42
+python src/runner/run_single.py --mode ray --n-tasks 10 --repeat-id 1 --seed 42 --n-agents 4
+python src/metrics/validate.py
+python src/analysis/analyze.py
+python src/analysis/plot_results.py
+```
+
+## Full Experiment
+```bash
+bash scripts/run_experiments.sh full
+python src/metrics/validate.py
+python src/analysis/analyze.py
+python src/analysis/plot_results.py
+```
+
+Windows PowerShell:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_experiments.ps1 -Mode full
+python src/metrics/validate.py
+python src/analysis/analyze.py
+python src/analysis/plot_results.py
+```
+
+Run protocol and KPI definitions are documented in:
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `docs/METRICS_SPEC.md`
 

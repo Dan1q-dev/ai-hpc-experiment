@@ -1,26 +1,30 @@
 # METRICS_SPEC.md
-Описание всех метрик, собираемых в эксперименте
 
-## Структура данных raw_results.csv
+## Raw Data Schema (`results/raw/raw_results.csv`)
+- `run_id`: unique run identifier.
+- `mode`: `baseline` or `ray`.
+- `n_agents`: configured worker/actor parallelism (for baseline can be `1`).
+- `n_tasks`: total number of tasks in this run (autoscaling axis).
+- `repeat_id`: repeat index (`1..5`).
+- `seed`: deterministic seed used for run.
+- `task_id`: task index inside run.
+- `submit_ts`: timestamp right before task submission.
+- `start_ts`: timestamp when execution actually starts.
+- `end_ts`: timestamp when execution completes (success or final failure).
+- `task_duration_s`: `end_ts - start_ts`.
+- `sched_overhead_ms`: `(start_ts - submit_ts) * 1000`.
+- `cpu_avg_pct`: average CPU utilization sampled for the task window.
+- `gpu_avg_pct`: average GPU utilization sampled for the task window (`0` if unavailable).
+- `failed`: `0` or `1` after retries.
+- `recovery_time_s`: time between first failure and successful retry completion (`0` if no recovery).
 
-- run_id — уникальный идентификатор прогона
-- mode — режим эксперимента (ray / baseline)
-- n_agents — количество агентов в прогоне
-- repeat_id — номер повторения (1..5)
-- seed — фиксированный seed
-- task_id — ID задачи внутри прогона
-- submit_ts — время отправки задачи
-- start_ts — время начала выполнения
-- end_ts — время завершения
-- task_duration_s = end_ts - start_ts
-- sched_overhead_ms = (start_ts - submit_ts) * 1000
-- cpu_avg_pct — средняя загрузка CPU
-- gpu_avg_pct — средняя загрузка GPU
-- failed — 0/1
-- recovery_time_s — если был отказ
+## Aggregation Formulas
+- `TTS(run_id) = max(end_ts) - min(submit_ts)`.
+- `Speedup(n_tasks) = median(TTS_baseline) / median(TTS_ray)` for same `n_tasks`.
+- `Efficiency(n_tasks) = Speedup(n_tasks) / n_agents_ray`.
+- `Scheduling overhead p50/p95`: quantiles over task-level overheads.
 
-## Формулы
-
-TTS(run_id) = max(end_ts) - min(submit_ts)
-
-Speedup(N) = TTS(baseline_N) / TTS(ray_N)
+## Reliability Semantics
+- Failure injection may force one task to fail on first attempt.
+- Recovery is measured only when retry succeeds.
+- If task stays failed after max retries, `failed=1` and `recovery_time_s=0`.

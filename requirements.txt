@@ -1,0 +1,5 @@
+matplotlib>=3.8,<4
+numpy>=1.26,<3
+pandas>=2.2,<3
+psutil>=5.9,<6
+ray[default]>=2.30,<3; python_version < "3.13"
