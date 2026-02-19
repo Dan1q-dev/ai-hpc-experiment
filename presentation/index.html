@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI-HPC Experiment | Scenario V</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --panel: #ffffff;
+      --ink: #0d1b2a;
+      --muted: #5b6470;
+      --line: #d7dde6;
+      --brand: #0f766e;
+      --brand-soft: #c7f2ee;
+      --accent: #e76f51;
+      --accent-soft: #fde1d9;
+      --shadow: 0 12px 32px rgba(13, 27, 42, 0.1);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 700px at -5% -10%, #d8ebff 0%, transparent 65%),
+        radial-gradient(1000px 600px at 110% -20%, #d8fce9 0%, transparent 60%),
+        var(--bg);
+      font-family: Manrope, sans-serif;
+    }
+
+    .wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 20px 56px;
+    }
+
+    .hero {
+      background: linear-gradient(120deg, #0d1b2a 0%, #1b2f46 70%, #134e4a 100%);
+      color: #eef5ff;
+      border-radius: 24px;
+      padding: 36px 30px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      animation: appear .5s ease-out;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 340px;
+      height: 340px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 72%);
+      right: -120px;
+      top: -120px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { font-family: "Space Grotesk", sans-serif; margin: 0; }
+    h1 { margin-top: 14px; font-size: clamp(30px, 5vw, 48px); line-height: 1.08; }
+    .sub { margin-top: 14px; max-width: 760px; color: #c9d8eb; font-size: 17px; line-height: 1.5; }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .grid.kpi { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .grid.results { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      animation: rise .45s ease both;
+    }
+    .card h3 { font-size: 18px; margin-bottom: 8px; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .metric {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .metric.teal { color: var(--brand); }
+    .metric.orange { color: var(--accent); }
+
+    .section-title { margin: 34px 0 14px; font-size: clamp(24px, 4vw, 32px); }
+    .section-text { margin: 0; color: var(--muted); line-height: 1.55; }
+
+    .scenario {
+      border-left: 4px solid var(--brand);
+      background: linear-gradient(90deg, var(--brand-soft) 0%, #fff 75%);
+    }
+
+    .results-card { background: linear-gradient(120deg, #ffffff 0%, #f4fbfa 100%); }
+    .results-card small { color: var(--muted); }
+
+    .table-wrap {
+      margin-top: 14px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 520px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid #e5ebf2;
+      font-size: 14px;
+    }
+    th {
+      font-family: "Space Grotesk", sans-serif;
+      font-weight: 700;
+      background: #f8fafc;
+    }
+
+    .roles { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+    .role-a { border-top: 5px solid #3b82f6; }
+    .role-b { border-top: 5px solid #f59e0b; }
+    .role-c { border-top: 5px solid #10b981; }
+
+    .timeline { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+    .day {
+      border: 1px dashed #c4ced9;
+      background: #fcfdff;
+    }
+    .day .num {
+      display: inline-block;
+      min-width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 28px;
+      color: #fff;
+      font-weight: 700;
+      background: #1f4f8a;
+      margin-bottom: 10px;
+    }
+
+    .artifacts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 18px;
+      color: var(--muted);
+    }
+    .artifacts code { color: #0f172a; }
+
+    .fig-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+      gap: 14px;
+    }
+    .fig {
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .fig img {
+      width: 100%;
+      display: block;
+      cursor: zoom-in;
+      transition: transform .25s ease;
+    }
+    .fig img:hover {
+      transform: scale(1.02);
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 10, 20, 0.9);
+      z-index: 999;
+      padding: 24px;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: min(1400px, 96vw);
+      max-height: 92vh;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow: 0 16px 40px rgba(0,0,0,.4);
+    }
+    .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      border: 0;
+      background: rgba(255,255,255,.15);
+      color: #fff;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      font-size: 22px;
+      cursor: pointer;
+    }
+
+    .footer {
+      margin-top: 26px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @keyframes appear {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 820px) {
+      .artifacts { grid-template-columns: 1fr; }
+      .fig-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <span class="badge">AI-HPC · Scenario V</span>
+      <h1>Оценка эффективности Ray для контейнеризированных параллельных вычислений</h1>
+      <p class="sub">
+        Мы сравниваем baseline и Ray при постепенном росте нагрузки от 10 до 1000 задач.
+        Цель: показать, как меняются скорость решения, накладные расходы оркестрации,
+        использование ресурсов и устойчивость к отказам.
+      </p>
+    </section>
+
+    <h2 class="section-title">KPI Эксперимента</h2>
+    <div class="grid kpi">
+      <article class="card"><div class="metric teal">TTS</div><p>Общее время выполнения набора задач.</p></article>
+      <article class="card"><div class="metric orange">Speedup</div><p>Отношение baseline ко времени Ray на той же нагрузке.</p></article>
+      <article class="card"><div class="metric teal">CPU/GPU</div><p>Средняя загрузка выделенных ресурсов во время выполнения.</p></article>
+      <article class="card"><div class="metric orange">Recovery</div><p>Время восстановления после искусственно вызванного сбоя актора.</p></article>
+      <article class="card"><div class="metric teal">Overhead</div><p>Задержка между submit и фактическим стартом задачи.</p></article>
+    </div>
+
+    <h2 class="section-title">Сценарий Тестирования</h2>
+    <article class="card scenario">
+      <h3>Сценарий В — Dynamic Autoscaling</h3>
+      <p class="section-text">
+        Нагрузка постепенно увеличивается от <strong>10 до 1000 задач</strong>.
+        Для каждой точки выполняются <strong>минимум 5 повторов</strong>,
+        сравниваются режимы <code>baseline</code> и <code>ray</code> при одинаковой задаче.
+      </p>
+    </article>
+
+    <h2 class="section-title">Итоговые Числа (из speedup_efficiency.csv)</h2>
+    <div class="grid results">
+      <article class="card results-card">
+        <div class="metric teal">3.11x</div>
+        <small>Максимальный speedup (n_tasks=20)</small>
+      </article>
+      <article class="card results-card">
+        <div class="metric teal">2.12x</div>
+        <small>Минимальный speedup (n_tasks=100)</small>
+      </article>
+      <article class="card results-card">
+        <div class="metric orange">0.78</div>
+        <small>Максимальная efficiency (n_tasks=20)</small>
+      </article>
+      <article class="card results-card">
+        <div class="metric orange">0.53</div>
+        <small>Минимальная efficiency (n_tasks=100)</small>
+      </article>
+      <article class="card results-card">
+        <div class="metric teal">2.85x</div>
+        <small>Speedup на n_tasks=1000</small>
+      </article>
+      <article class="card results-card">
+        <div class="metric orange">0.71</div>
+        <small>Efficiency на n_tasks=1000</small>
+      </article>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>n_tasks</th>
+            <th>speedup</th>
+            <th>efficiency</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>10</td><td>2.673</td><td>0.668</td></tr>
+          <tr><td>20</td><td>3.107</td><td>0.777</td></tr>
+          <tr><td>50</td><td>2.561</td><td>0.640</td></tr>
+          <tr><td>100</td><td>2.125</td><td>0.531</td></tr>
+          <tr><td>200</td><td>2.370</td><td>0.592</td></tr>
+          <tr><td>500</td><td>2.744</td><td>0.686</td></tr>
+          <tr><td>1000</td><td>2.845</td><td>0.711</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section-title">Роли Команды</h2>
+    <div class="grid roles">
+      <article class="card role-a">
+        <h3>Участник A · Infra</h3>
+        <p>Поднимает среду, отвечает за запуск серии тестов и воспроизводимость.
+        Основной артефакт: <code>scripts/run_experiments.sh</code>.</p>
+      </article>
+      <article class="card role-b">
+        <h3>Участник B · Metrics</h3>
+        <p>Собирает task-level метрики, следит за валидностью raw-данных.
+        Основной артефакт: <code>results/raw/raw_results.csv</code>.</p>
+      </article>
+      <article class="card role-c">
+        <h3>Участник C · Analysis</h3>
+        <p>Агрегирует показатели, строит графики и формулирует выводы.
+        Основной артефакт: <code>results/aggregated/*.csv</code> и <code>results/figures/*.png</code>.</p>
+      </article>
+    </div>
+
+    <h2 class="section-title">План На 4 Дня</h2>
+    <div class="grid timeline">
+      <article class="card day"><span class="num">1</span><h3>Протокол + Dry Run</h3><p>Фиксация KPI, параметров и проверка пайплайна на малых нагрузках.</p></article>
+      <article class="card day"><span class="num">2</span><h3>Полная Серия Ray</h3><p>Прогон всех точек нагрузки и повторов для режима Ray.</p></article>
+      <article class="card day"><span class="num">3</span><h3>Baseline + Отказы</h3><p>Те же точки без Ray и проверка восстановлений после сбоев.</p></article>
+      <article class="card day"><span class="num">4</span><h3>Анализ и Защита</h3><p>Агрегация, графики, выводы, ограничений и репетиция доклада.</p></article>
+    </div>
+
+    <h2 class="section-title">Минимальные Артефакты</h2>
+    <article class="card">
+      <div class="artifacts">
+        <div>1. <code>docs/EXPERIMENT_PROTOCOL.md</code></div>
+        <div>2. <code>scripts/run_experiments.sh</code></div>
+        <div>3. <code>results/raw/raw_results.csv</code></div>
+        <div>4. <code>results/aggregated/aggregated_results.csv</code></div>
+        <div>5. <code>results/figures/tts_vs_n.png</code></div>
+        <div>6. <code>results/figures/speedup_vs_n.png</code></div>
+      </div>
+    </article>
+
+    <h2 class="section-title">Графики Эксперимента</h2>
+    <div class="fig-grid">
+      <figure class="fig">
+        <img src="../results/figures/tts_vs_n.png" alt="TTS vs n" class="zoomable">
+      </figure>
+      <figure class="fig">
+        <img src="../results/figures/speedup_vs_n.png" alt="Speedup vs n" class="zoomable">
+      </figure>
+      <figure class="fig">
+        <img src="../results/figures/efficiency_vs_n.png" alt="Efficiency vs n" class="zoomable">
+      </figure>
+      <figure class="fig">
+        <img src="../results/figures/recovery_vs_n.png" alt="Recovery vs n" class="zoomable">
+      </figure>
+    </div>
+
+    <p class="footer">
+      AI-HPC Experiment · Team A/B/C · Presentation Page
+    </p>
+  </main>
+
+  <div id="lightbox" class="lightbox" aria-hidden="true">
+    <button id="closeBtn" class="close-btn" aria-label="Close">×</button>
+    <img id="lightboxImg" src="" alt="Expanded chart">
+  </div>
+
+  <script>
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImg = document.getElementById("lightboxImg");
+    const closeBtn = document.getElementById("closeBtn");
+
+    document.querySelectorAll(".zoomable").forEach((img) => {
+      img.addEventListener("click", () => {
+        lightboxImg.src = img.src;
+        lightbox.classList.add("open");
+      });
+    });
+
+    function closeLightbox() {
+      lightbox.classList.remove("open");
+      lightboxImg.src = "";
+    }
+
+    closeBtn.addEventListener("click", closeLightbox);
+    lightbox.addEventListener("click", (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeLightbox();
+    });
+  </script>
+</body>
+</html>

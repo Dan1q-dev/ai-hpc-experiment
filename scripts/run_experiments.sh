@@ -4,6 +4,7 @@ set -euo pipefail
 MODE="${1:-full}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 OUT_CSV="results/raw/raw_results.csv"
+export RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
 
 mkdir -p results/raw
 

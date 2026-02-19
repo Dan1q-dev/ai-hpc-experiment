@@ -6,6 +6,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $outCsv = "results/raw/raw_results.csv"
+$env:RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO = "0"
 
 New-Item -ItemType Directory -Force -Path "results/raw" | Out-Null
 

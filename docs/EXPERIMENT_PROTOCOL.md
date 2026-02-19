@@ -30,6 +30,14 @@ Expected run count:
 - `CPU/GPU utilization`: average percentages over run
 - `Failure recovery time`: retry completion time after injected failure
 
+## Observability Tooling
+- Prometheus exporter from runner: `http://127.0.0.1:9108/metrics` during each run.
+- Optional Prometheus API integration for K8s metrics:
+  `--prometheus-url <URL> --k8s-namespace <NS> --k8s-pod-regex <REGEX>`.
+- Ray Dashboard enabled by default in ray mode (port 8265 unless changed).
+- Actor state snapshots are exported to `results/raw/actor_states.csv`.
+- Function timing uses custom Python decorators from `src/metrics/instrumentation.py`.
+
 ## Execution
 Smoke:
 ```bash

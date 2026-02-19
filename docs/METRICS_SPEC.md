@@ -18,6 +18,13 @@
 - `failed`: `0` or `1` after retries.
 - `recovery_time_s`: time between first failure and successful retry completion (`0` if no recovery).
 
+## Actor State Schema (`results/raw/actor_states.csv`)
+- `run_id`: run identifier.
+- `backend`: `ray` or `process_pool`.
+- `actor_index`: actor/worker index.
+- `tasks_executed`: number of attempts executed by this actor.
+- `snapshot_ts`: unix timestamp when snapshot was captured.
+
 ## Aggregation Formulas
 - `TTS(run_id) = max(end_ts) - min(submit_ts)`.
 - `Speedup(n_tasks) = median(TTS_baseline) / median(TTS_ray)` for same `n_tasks`.
@@ -28,3 +35,8 @@
 - Failure injection may force one task to fail on first attempt.
 - Recovery is measured only when retry succeeds.
 - If task stays failed after max retries, `failed=1` and `recovery_time_s=0`.
+
+## Prometheus
+- Runner exports metrics for scrape on `127.0.0.1:9108/metrics` by default.
+- Optional K8s Prometheus pull is supported via:
+  `--prometheus-url`, `--k8s-namespace`, `--k8s-pod-regex`.

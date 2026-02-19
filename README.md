@@ -17,6 +17,12 @@ against a sequential baseline under dynamic growth of task count.
 - Resource utilization (CPU / GPU average).
 - Failure recovery time when failure injection is enabled.
 
+## Observability
+- Prometheus scrape endpoint is exposed by runner on `127.0.0.1:9108/metrics`.
+- Ray Dashboard is enabled in ray mode by default.
+- Actor state snapshots are saved to `results/raw/actor_states.csv`.
+- Custom timing decorators live in `src/metrics/instrumentation.py`.
+
 ## Repo Layout
 - `docs/` protocol and metric specification.
 - `scripts/` orchestration scripts.
@@ -68,4 +74,16 @@ python src/analysis/plot_results.py
 Run protocol and KPI definitions are documented in:
 - `docs/EXPERIMENT_PROTOCOL.md`
 - `docs/METRICS_SPEC.md`
+
+Optional K8s Prometheus pull example:
+```bash
+python src/runner/run_single.py \
+  --mode ray \
+  --n-agents 4 \
+  --n-tasks 100 \
+  --repeat-id 1 \
+  --prometheus-url http://prometheus.monitoring.svc:9090 \
+  --k8s-namespace default \
+  --k8s-pod-regex "ray-.*"
+```
 

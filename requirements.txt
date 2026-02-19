@@ -1,5 +1,7 @@
 matplotlib>=3.8,<4
 numpy>=1.26,<3
 pandas>=2.2,<3
+prometheus-client>=0.20,<1
 psutil>=5.9,<6
+requests>=2.31,<3
 ray[default]>=2.30,<3; python_version < "3.13"
