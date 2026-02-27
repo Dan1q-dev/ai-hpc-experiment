@@ -1,40 +1,41 @@
-# AI-HPC Experiment (Scenario V: Autoscaling)
+# AI-HPC Experiment (Сценарий V: Автомасштабирование)
 
-## Goal
-Quantitatively evaluate benefits of Ray-based orchestration for agent workloads
-against a sequential baseline under dynamic growth of task count.
+## Цель
+Количественно оценить преимущества оркестрации на базе Ray для агентных нагрузок
+по сравнению с последовательным baseline при динамическом росте числа задач.
 
-## Experiment Scope
-- Scenario V only: autoscaling stress from 10 to 1000 tasks.
-- Modes: `baseline` and `ray`.
-- Repeats per point: 5.
-- Same synthetic compute workload for both modes.
+## Область эксперимента
+- Только Scenario V: стресс автоскейлинга от 10 до 1000 задач.
+- Режимы: `baseline` и `ray`.
+- Повторов на точку: 5.
+- Одинаковая синтетическая вычислительная нагрузка для обоих режимов.
 
-## KPIs
+## KPI
 - Time-to-Solution (TTS).
-- Speedup (`TTS_baseline / TTS_ray`) for the same task count.
-- Scheduling overhead (p50 / p95).
-- Resource utilization (CPU / GPU average).
-- Failure recovery time when failure injection is enabled.
+- Ускорение (`TTS_baseline / TTS_ray`) для одинакового числа задач.
+- Накладные расходы планирования (p50 / p95).
+- Утилизация ресурсов (средние CPU / GPU).
+- Время восстановления после отказа, когда включена инъекция отказов.
 
-## Observability
-- Prometheus scrape endpoint is exposed by runner on `127.0.0.1:9108/metrics`.
-- Ray Dashboard is enabled in ray mode by default.
-- Actor state snapshots are saved to `results/raw/actor_states.csv`.
-- Custom timing decorators live in `src/metrics/instrumentation.py`.
+## Наблюдаемость
+- Endpoint Prometheus для scrape публикуется раннером на `127.0.0.1:9108/metrics`.
+- Ray Dashboard по умолчанию включен в режиме ray.
+- Снимки состояния акторов сохраняются в `results/raw/actor_states.csv`.
+- Кастомные декораторы таймингов находятся в `src/metrics/instrumentation.py`.
 
-## Repo Layout
-- `docs/` protocol and metric specification.
-- `scripts/` orchestration scripts.
-- `src/runner/` single experiment run logic.
-- `src/metrics/` validation helpers.
-- `src/analysis/` aggregation and plotting.
-- `results/` generated experiment outputs.
+## Структура репозитория
+- `docs/` протокол эксперимента и спецификация метрик.
+- `scripts/` скрипты оркестрации.
+- `src/runner/` логика одиночного запуска эксперимента.
+- `src/metrics/` вспомогательные инструменты валидации.
+- `src/analysis/` агрегация и построение графиков.
+- `results/` сгенерированные результаты экспериментов.
 
-## Quick Start
-Recommended Python for full `ray` flow: `3.10-3.12`.
-If `ray` is unavailable (for example on Python 3.13), `--mode ray` falls back
-to local process-based parallel execution so the pipeline can still run end-to-end.
+## Быстрый старт
+Рекомендуемая версия Python для полного `ray`-потока: `3.10-3.12`.
+Если `ray` недоступен (например, на Python 3.13), `--mode ray` переключается
+на локальное параллельное выполнение через процессы, чтобы пайплайн всё равно
+выполнялся end-to-end.
 
 ```bash
 python -m venv .venv
@@ -55,7 +56,7 @@ python src/analysis/analyze.py
 python src/analysis/plot_results.py
 ```
 
-## Full Experiment
+## Полный эксперимент
 ```bash
 bash scripts/run_experiments.sh full
 python src/metrics/validate.py
@@ -63,133 +64,133 @@ python src/analysis/analyze.py
 python src/analysis/plot_results.py
 ```
 
-## Scenario 1: Indexing Scalability (Ray Data/Indexing Pipeline)
-Target matrix:
-- Dataset sizes: `100000, 1000000, 10000000`
+## Сценарий 1: Масштабируемость индексации (Ray Data/Indexing Pipeline)
+Целевая матрица:
+- Размеры датасета: `100000, 1000000, 10000000`
 - Ray workers: `1,2,4,8`
-- Repeats: `5`
-- Control group: `baseline` (workers=1)
+- Повторы: `5`
+- Контрольная группа: `baseline` (workers=1)
 
-Run smoke (quick verification):
+Запуск smoke (быстрая проверка):
 ```bash
 bash scripts/run_indexing_scenario.sh smoke
-# or: make scenario1-smoke
+# или: make scenario1-smoke
 ```
 
-Run full matrix:
+Запуск полной матрицы:
 ```bash
 bash scripts/run_indexing_scenario.sh full
-# or: make scenario1-full
+# или: make scenario1-full
 ```
 
-Strict stack smoke (pretrained embeddings + Qdrant vector DB):
+Smoke для strict-стека (pretrained embeddings + Qdrant vector DB):
 ```bash
 bash scripts/run_indexing_scenario_strict.sh smoke
-# or: make scenario1-strict-smoke
+# или: make scenario1-strict-smoke
 ```
 
-Strict stack full matrix (CPU-only hosts: long run):
+Полная матрица strict-стека (хосты только с CPU: долгий прогон):
 ```bash
 bash scripts/run_indexing_scenario_strict.sh full
-# or: make scenario1-strict-full
+# или: make scenario1-strict-full
 ```
 
-Strict stack defaults:
-- embedding model: `BAAI/bge-small-en-v1.5` (FastEmbed ONNX)
-- vector DB: `qdrant` (`QDRANT_LOCATION=:memory:` by default)
+Параметры strict-стека по умолчанию:
+- embedding модель: `BAAI/bge-small-en-v1.5` (FastEmbed ONNX)
+- векторная БД: `qdrant` (`QDRANT_LOCATION=:memory:` по умолчанию)
 
-Containerized Scenario 1 run:
+Контейнерный запуск Scenario 1:
 ```bash
 bash scripts/docker_run.sh scenario1-smoke
 bash scripts/docker_run.sh scenario1-full
 ```
 
-Scenario 1 outputs:
-- Raw runs: `results/scenario1/raw/indexing_raw.csv`
-- Aggregated: `results/scenario1/aggregated/indexing_aggregated.csv`
+Артефакты Scenario 1:
+- Сырые прогоны: `results/scenario1/raw/indexing_raw.csv`
+- Агрегированные: `results/scenario1/aggregated/indexing_aggregated.csv`
 - Speedup: `results/scenario1/aggregated/indexing_speedup.csv`
-- Stage breakdown: `results/scenario1/aggregated/indexing_stage_breakdown.csv`
-- Figures: `results/scenario1/figures/*.png`
+- Разбивка по стадиям: `results/scenario1/aggregated/indexing_stage_breakdown.csv`
+- Графики: `results/scenario1/figures/*.png`
 
-Slurm templates for Ray cluster bootstrap:
+Slurm-шаблоны для bootstrap Ray-кластера:
 - `slurm/ray_head.sh`
 - `slurm/ray_worker.sh`
 - `slurm/submit_cluster.sh`
 
-## Local Slurm (Docker, no sudo)
-This repository includes a reproducible single-node Slurm profile that runs in Docker.
-Use it when host-level `slurmctld/slurmd` setup is unavailable.
+## Локальный Slurm (Docker, без sudo)
+В репозитории есть воспроизводимый однузловой профиль Slurm, который запускается в Docker.
+Используйте его, если на хосте недоступна настройка `slurmctld/slurmd`.
 
-Bring Slurm up:
+Поднять Slurm:
 ```bash
 bash scripts/slurm_local_up.sh
-# or: make slurm-up
+# или: make slurm-up
 ```
 
-Check cluster:
+Проверить кластер:
 ```bash
 bash scripts/slurm_local_status.sh
-# or: make slurm-status
+# или: make slurm-status
 ```
 
-Run smoke parallel job (`sbatch` + `srun -n 4`):
+Запустить smoke-параллельную задачу (`sbatch` + `srun -n 4`):
 ```bash
 bash scripts/slurm_local_submit_test.sh
-# or: make slurm-test
+# или: make slurm-test
 ```
 
-Run arbitrary Slurm command inside container:
+Выполнить произвольную команду Slurm внутри контейнера:
 ```bash
 bash scripts/slurm_local_exec.sh "scontrol ping && sinfo -N"
 ```
 
-Stop/remove local Slurm:
+Остановить/удалить локальный Slurm:
 ```bash
 bash scripts/slurm_local_down.sh
-# or: make slurm-down
+# или: make slurm-down
 ```
 
-## Containerized Run (Docker)
-Container image defaults:
-- Python image: `python:3.9-slim-bookworm`
-- Ray version: `2.46.0` (aligned with KubeRay cluster used in this project)
+## Контейнерный запуск (Docker)
+Параметры контейнерного образа по умолчанию:
+- Python-образ: `python:3.9-slim-bookworm`
+- Версия Ray: `2.46.0` (синхронизирована с KubeRay-кластером этого проекта)
 
-Build image:
+Собрать образ:
 ```bash
 bash scripts/docker_run.sh build
-# or: make docker-build
+# или: make docker-build
 ```
 
-Smoke run inside container:
+Smoke-запуск внутри контейнера:
 ```bash
 bash scripts/docker_run.sh smoke
-# or: make docker-smoke
+# или: make docker-smoke
 ```
 
-Full matrix + validation + analysis + plots inside container:
+Полная матрица + валидация + анализ + графики внутри контейнера:
 ```bash
 bash scripts/docker_run.sh full
-# or: make docker-full
+# или: make docker-full
 ```
 
-Open presentation page from container:
+Открыть страницу презентации из контейнера:
 ```bash
 bash scripts/docker_run.sh present
 # http://localhost:8031/presentation/
 ```
 
-If port `8031` is busy:
+Если порт `8031` занят:
 ```bash
 PRESENTATION_PORT=8041 bash scripts/docker_run.sh present
 # http://localhost:8041/presentation/
 ```
 
-Stop presentation container:
+Остановить контейнер презентации:
 ```bash
 bash scripts/docker_run.sh stop-present
 ```
 
-Optional: run against external KubeRay/Prometheus (passed into container):
+Опционально: запуск с внешним KubeRay/Prometheus (передаются в контейнер):
 ```bash
 export RAY_ADDRESS=auto
 export RAY_AGENTS=2
@@ -199,33 +200,34 @@ export K8S_POD_REGEX='autoscale-exp-.*'
 bash scripts/docker_run.sh full
 ```
 
-Notes:
-- `scripts/docker_run.sh` uses `--network host` for experiment runs to simplify
-  access to local K8s/KubeRay networking on Ubuntu.
-- Result files are written to host-mounted `results/`.
-- First image build can be long because Ray + scientific stack is downloaded once.
-- If Docker BuildKit/buildx is unavailable, script automatically falls back to
-  legacy `docker build`.
-- You can override image build args:
+Примечания:
+- `scripts/docker_run.sh` использует `--network host` для запусков эксперимента,
+  чтобы упростить доступ к локальной сети K8s/KubeRay в Ubuntu.
+- Файлы результатов пишутся в примонтированный с хоста `results/`.
+- Первая сборка образа может быть долгой, так как стек Ray + scientific
+  загружается один раз.
+- Если Docker BuildKit/buildx недоступен, скрипт автоматически переключается
+  на классический `docker build`.
+- Можно переопределить build-аргументы образа:
   `PYTHON_IMAGE=python:3.10-slim-bookworm RAY_VERSION=2.46.0 bash scripts/docker_run.sh build`
 
-Optional: run the containerized full experiment as a Kubernetes Job:
+Опционально: запуск полного контейнерного эксперимента как Kubernetes Job:
 ```bash
-# Build local image first
+# Сначала соберите локальный образ
 bash scripts/docker_run.sh build
 
-# (k3s) import image into containerd runtime used by cluster
+# (k3s) импортируйте образ в containerd runtime кластера
 docker save ai-hpc-experiment:local | sudo k3s ctr images import -
 
-# Ensure PVC exists (or edit configs/experiment-job.yaml)
+# Убедитесь, что PVC существует (или отредактируйте configs/experiment-job.yaml)
 kubectl get pvc ai-hpc-results-pvc -n default
 
-# Run job
+# Запустите job
 kubectl apply -f configs/experiment-job.yaml
 kubectl logs -f job/ai-hpc-full-run -n default
 ```
 
-Full experiment against an existing KubeRay cluster (ray mode on cluster, baseline local):
+Полный эксперимент на существующем KubeRay-кластере (ray mode в кластере, baseline локально):
 ```bash
 export RAY_ADDRESS=auto
 export RAY_AGENTS=2
@@ -243,12 +245,12 @@ python src/analysis/analyze.py
 python src/analysis/plot_results.py
 ```
 
-Run protocol and KPI definitions are documented in:
+Описание протокола запусков и KPI находится в:
 - `docs/EXPERIMENT_PROTOCOL.md`
 - `docs/METRICS_SPEC.md`
 - `docs/SCENARIO1_INDEXING.md`
 
-Optional K8s Prometheus pull example:
+Пример опционального pull метрик из K8s Prometheus:
 ```bash
 python src/runner/run_single.py \
   --mode ray \
