@@ -1,0 +1,1 @@
+run_id,mode,dataset_size,workers,repeat_id,seed,batch_docs,embedding_backend,embedding_model,embedding_dim,embedding_intensity,template_pool_size,max_chunks_per_doc,vector_backend,qdrant_location,backend,docs_total,chunks_total,points_total,parse_wall_s,embed_wall_s,upsert_wall_s,total_wall_s,parse_sum_s,embed_sum_s,upsert_sum_s,checksum,ray_address,timestamp_utc

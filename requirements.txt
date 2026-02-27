@@ -5,3 +5,5 @@ prometheus-client>=0.20,<1
 psutil>=5.9,<6
 requests>=2.31,<3
 ray[default]>=2.30,<3; python_version < "3.13"
+qdrant-client>=1.11,<2
+fastembed>=0.3.6,<1

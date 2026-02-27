@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ai-hpc-full-run
+  namespace: default
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: ai-hpc-full-run
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: experiment
+          image: ai-hpc-experiment:local
+          imagePullPolicy: IfNotPresent
+          workingDir: /workspace
+          env:
+            - name: PYTHON_BIN
+              value: "python3"
+            - name: RAY_ADDRESS
+              value: "auto"
+            - name: RAY_AGENTS
+              value: "2"
+            - name: PROMETHEUS_URL
+              value: "http://prometheus-server.monitoring.svc.cluster.local"
+            - name: K8S_NAMESPACE
+              value: "default"
+            - name: K8S_POD_REGEX
+              value: "autoscale-exp-.*"
+          command: ["bash", "-lc"]
+          args:
+            - |
+              bash scripts/run_experiments.sh full
+              python3 src/metrics/validate.py
+              python3 src/analysis/analyze.py
+              python3 src/analysis/plot_results.py
+          volumeMounts:
+            - name: results
+              mountPath: /workspace/results
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: ai-hpc-results-pvc

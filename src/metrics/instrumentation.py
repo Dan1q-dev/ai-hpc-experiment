@@ -1,11 +1,11 @@
 import time
 from functools import wraps
-from typing import Any, Callable, TypeVar, cast
+from typing import Any, Callable, Optional, TypeVar, cast
 
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-def timed(metric_name: str | None = None):
+def timed(metric_name: Optional[str] = None):
     def decorator(func: F) -> F:
         @wraps(func)
         def wrapper(*args, **kwargs):

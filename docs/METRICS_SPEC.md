@@ -40,3 +40,5 @@
 - Runner exports metrics for scrape on `127.0.0.1:9108/metrics` by default.
 - Optional K8s Prometheus pull is supported via:
   `--prometheus-url`, `--k8s-namespace`, `--k8s-pod-regex`.
+- If K8s Prometheus pull returns values in `ray` mode, those values are written
+  into `cpu_avg_pct` / `gpu_avg_pct` for that run's rows.

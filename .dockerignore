@@ -1,0 +1,15 @@
+.git
+.gitignore
+.venv
+.venv*/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+results/raw/*.csv
+results/aggregated/*.csv
+results/figures/*.png
+figures/
+*.log

@@ -254,18 +254,29 @@ def run_ray_native(args, run_id: str, ray) -> List[dict]:
     try:
         RemoteWorkerActor = ray.remote(RayWorkerActor)
 
-        ctx = ray.init(
-            ignore_reinit_error=True,
-            num_cpus=args.n_agents,
-            include_dashboard=not args.disable_dashboard,
-            dashboard_port=args.dashboard_port,
-            log_to_driver=False,
-            runtime_env={
+        init_kwargs = {
+            "ignore_reinit_error": True,
+            "log_to_driver": False,
+        }
+        if args.ray_address:
+            # Keep working_dir at src root so workers can import top-level
+            # packages like "metrics" and "runner" on Ray 2.4x+ reliably.
+            init_kwargs["runtime_env"] = {
+                "working_dir": str(SRC_ROOT),
+                "excludes": ["__pycache__"],
+            }
+            init_kwargs["address"] = args.ray_address
+        else:
+            init_kwargs["runtime_env"] = {
                 "env_vars": {
                     "PYTHONPATH": str(SRC_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", "")
                 }
-            },
-        )
+            }
+            init_kwargs["num_cpus"] = args.n_agents
+            init_kwargs["include_dashboard"] = not args.disable_dashboard
+            init_kwargs["dashboard_port"] = args.dashboard_port
+
+        ctx = ray.init(**init_kwargs)
 
         dashboard_url = getattr(ctx, "dashboard_url", "") or getattr(getattr(ctx, "address_info", {}), "get", lambda _: "")("webui_url")
         if dashboard_url:
@@ -429,6 +440,7 @@ def main():
     p.add_argument("--failure-injection-threshold", type=int, default=200)
     p.add_argument("--disable-dashboard", action="store_true")
     p.add_argument("--dashboard-port", type=int, default=8265)
+    p.add_argument("--ray-address", type=str, default="")
     p.add_argument("--disable-prometheus-export", action="store_true")
     p.add_argument("--prometheus-port", type=int, default=9108)
     p.add_argument("--prometheus-url", type=str, default="")
@@ -456,21 +468,27 @@ def main():
     else:
         rows = run_ray(args, run_id)
 
-    for row in rows:
-        write_row(row)
-        prom.record_task(row)
-    prom.record_run(args.mode)
-
-    if args.prometheus_url:
+    if args.mode == "ray" and args.prometheus_url:
         prom_cpu, prom_gpu = query_k8s_utilization(
             prometheus_url=args.prometheus_url,
             namespace=args.k8s_namespace,
             pod_regex=args.k8s_pod_regex,
         )
         if prom_cpu is not None:
+            prom_cpu = max(0.0, min(100.0, prom_cpu))
+            for row in rows:
+                row["cpu_avg_pct"] = prom_cpu
             print(f"K8S_PROM_CPU_AVG_PCT={prom_cpu:.3f}")
         if prom_gpu is not None:
+            prom_gpu = max(0.0, min(100.0, prom_gpu))
+            for row in rows:
+                row["gpu_avg_pct"] = prom_gpu
             print(f"K8S_PROM_GPU_AVG_PCT={prom_gpu:.3f}")
+
+    for row in rows:
+        write_row(row)
+        prom.record_task(row)
+    prom.record_run(args.mode)
 
     print(f"RUN_ID={run_id}")
     print("OK")

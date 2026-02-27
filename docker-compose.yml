@@ -1,0 +1,45 @@
+services:
+  experiment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.9-slim-bookworm}
+        RAY_VERSION: ${RAY_VERSION:-2.46.0}
+    image: ai-hpc-experiment:local
+    working_dir: /workspace
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./:/workspace
+    network_mode: host
+    environment:
+      - PYTHON_BIN=python3
+      - RAY_ADDRESS=${RAY_ADDRESS:-}
+      - RAY_AGENTS=${RAY_AGENTS:-2}
+      - PROMETHEUS_URL=${PROMETHEUS_URL:-}
+      - K8S_NAMESPACE=${K8S_NAMESPACE:-default}
+      - K8S_POD_REGEX=${K8S_POD_REGEX:-autoscale-exp-.*}
+      - MODE=${MODE:-full}
+    command: >
+      bash -lc "
+      bash scripts/run_experiments.sh ${MODE:-full} &&
+      python3 src/metrics/validate.py &&
+      python3 src/analysis/analyze.py &&
+      python3 src/analysis/plot_results.py
+      "
+
+  presentation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.9-slim-bookworm}
+        RAY_VERSION: ${RAY_VERSION:-2.46.0}
+    image: ai-hpc-experiment:local
+    working_dir: /workspace
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./:/workspace
+    command: ["python3", "-m", "http.server", "8031"]
+    ports:
+      - "8031:8031"

@@ -105,11 +105,17 @@ def query_k8s_utilization(
     pod_regex: str,
 ) -> Tuple[Optional[float], Optional[float]]:
     cpu_query = (
-        f'avg(rate(container_cpu_usage_seconds_total{{namespace="{namespace}",pod=~"{pod_regex}",container!=""}}[1m])) * 100'
+        f'avg(rate(container_cpu_usage_seconds_total{{namespace="{namespace}",pod=~"{pod_regex}",container!=""}}[5m])) * 100'
     )
     gpu_query = (
         f'avg(container_accelerator_duty_cycle{{namespace="{namespace}",pod=~"{pod_regex}"}})'
     )
     cpu = _query_instant(prometheus_url, cpu_query)
+    if cpu is None:
+        # Fallback for clusters where cAdvisor pod metrics are not scraped.
+        cpu = _query_instant(
+            prometheus_url,
+            '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
+        )
     gpu = _query_instant(prometheus_url, gpu_query)
     return cpu, gpu
