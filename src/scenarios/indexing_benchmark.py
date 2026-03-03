@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import math
@@ -301,6 +302,105 @@ def create_vector_store(
     raise ValueError(f"unsupported vector_backend={vector_backend}")
 
 
+def process_docs_batch_ray_data(
+    batch: Dict[str, np.ndarray],
+    *,
+    embedding_backend: str,
+    embedding_model: str,
+    embedding_dim: int,
+    embedding_intensity: int,
+    template_pool_size: int,
+    max_chunks_per_doc: int,
+    vector_backend: str,
+    qdrant_location: str,
+    collection_prefix: str,
+    seed: int,
+) -> Dict[str, np.ndarray]:
+    doc_ids = np.asarray(batch["id"], dtype=np.int64)
+    docs_total = int(doc_ids.shape[0])
+
+    t0 = time.perf_counter()
+    chunk_ids = parse_chunk_ids(doc_ids, max_chunks_per_doc=max_chunks_per_doc, seed=seed)
+    parse_s = time.perf_counter() - t0
+    chunks_total = int(chunk_ids.shape[0])
+
+    t0 = time.perf_counter()
+    if embedding_backend == "synthetic":
+        embeddings = generate_synthetic_embeddings(
+            chunk_ids,
+            embedding_dim=embedding_dim,
+            intensity=embedding_intensity,
+            seed=seed,
+        )
+    elif embedding_backend == "pretrained":
+        embeddings = generate_pretrained_embeddings(
+            chunk_ids,
+            model_name=embedding_model,
+            template_pool_size=template_pool_size,
+            seed=seed,
+        )
+    else:
+        raise ValueError(f"unsupported embedding_backend={embedding_backend}")
+    embed_s = time.perf_counter() - t0
+
+    eff_dim = int(embeddings.shape[1]) if embeddings.ndim == 2 and embeddings.shape[1] > 0 else embedding_dim
+    collection_name = f"{collection_prefix}_{os.getpid()}_{uuid.uuid4().hex[:6]}"
+
+    store = create_vector_store(
+        vector_backend,
+        embedding_dim=eff_dim,
+        qdrant_location=qdrant_location,
+        collection_name=collection_name,
+    )
+    try:
+        t0 = time.perf_counter()
+        checksum = store.upsert(chunk_ids, embeddings)
+        upsert_s = time.perf_counter() - t0
+    finally:
+        store.close()
+
+    return {
+        "worker_id": np.asarray([str(os.getpid())], dtype=np.str_),
+        "docs_total": np.asarray([docs_total], dtype=np.int64),
+        "chunks_total": np.asarray([chunks_total], dtype=np.int64),
+        "points_total": np.asarray([int(chunk_ids.shape[0])], dtype=np.int64),
+        "parse_s": np.asarray([parse_s], dtype=np.float64),
+        "embed_s": np.asarray([embed_s], dtype=np.float64),
+        "upsert_s": np.asarray([upsert_s], dtype=np.float64),
+        "checksum": np.asarray([checksum], dtype=np.float64),
+        "embedding_dim": np.asarray([float(eff_dim)], dtype=np.float64),
+    }
+
+
+def _aggregate_ray_data_batch_rows(rows: Sequence[Dict[str, object]], default_embedding_dim: int) -> List[Dict[str, float]]:
+    by_worker: Dict[str, Dict[str, float]] = defaultdict(
+        lambda: {
+            "docs_total": 0.0,
+            "chunks_total": 0.0,
+            "points_total": 0.0,
+            "parse_s": 0.0,
+            "embed_s": 0.0,
+            "upsert_s": 0.0,
+            "checksum": 0.0,
+            "embedding_dim": float(default_embedding_dim),
+        }
+    )
+
+    for row in rows:
+        worker_id = str(row.get("worker_id", "worker-unknown"))
+        out = by_worker[worker_id]
+        out["docs_total"] += float(row.get("docs_total", 0.0))
+        out["chunks_total"] += float(row.get("chunks_total", 0.0))
+        out["points_total"] += float(row.get("points_total", 0.0))
+        out["parse_s"] += float(row.get("parse_s", 0.0))
+        out["embed_s"] += float(row.get("embed_s", 0.0))
+        out["upsert_s"] += float(row.get("upsert_s", 0.0))
+        out["checksum"] += float(row.get("checksum", 0.0))
+        out["embedding_dim"] = max(out["embedding_dim"], float(row.get("embedding_dim", default_embedding_dim)))
+
+    return list(by_worker.values())
+
+
 def process_shard(
     start: int,
     end: int,
@@ -413,9 +513,7 @@ def run_baseline(cfg: BenchmarkConfig) -> Tuple[str, List[Dict[str, float]], flo
     return "baseline", [shard_result], time.perf_counter() - started
 
 
-def run_ray_native(cfg: BenchmarkConfig) -> Tuple[str, List[Dict[str, float]], float]:
-    import ray  # type: ignore
-
+def ensure_ray_initialized(cfg: BenchmarkConfig, ray) -> None:
     global _RAY_SESSION_KEY
 
     session_key = cfg.ray_address.strip() or "local-default"
@@ -423,31 +521,83 @@ def run_ray_native(cfg: BenchmarkConfig) -> Tuple[str, List[Dict[str, float]], f
         ray.shutdown()
         _RAY_SESSION_KEY = None
 
-    if not ray.is_initialized():
-        py_path = str(SRC_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", "")
-        init_kwargs: Dict[str, object] = {
-            "ignore_reinit_error": True,
-            "log_to_driver": False,
-            "runtime_env": {
-                "env_vars": {
-                    "PYTHONPATH": py_path,
-                }
+    if ray.is_initialized():
+        return
+
+    py_path = str(SRC_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", "")
+    init_kwargs: Dict[str, object] = {
+        "ignore_reinit_error": True,
+        "log_to_driver": False,
+        "runtime_env": {
+            "env_vars": {
+                "PYTHONPATH": py_path,
+            }
+        },
+    }
+    if cfg.ray_address:
+        init_kwargs["address"] = cfg.ray_address
+        init_kwargs["runtime_env"] = {
+            "working_dir": str(SRC_ROOT),
+            "excludes": ["__pycache__"],
+            "env_vars": {
+                "PYTHONPATH": py_path,
             },
         }
-        if cfg.ray_address:
-            init_kwargs["address"] = cfg.ray_address
-            init_kwargs["runtime_env"] = {
-                "working_dir": str(SRC_ROOT),
-                "excludes": ["__pycache__"],
-                "env_vars": {
-                    "PYTHONPATH": py_path,
-                },
-            }
-        else:
-            init_kwargs["num_cpus"] = max(cfg.workers, int(os.cpu_count() or cfg.workers))
+    else:
+        init_kwargs["num_cpus"] = max(cfg.workers, int(os.cpu_count() or cfg.workers))
+        init_kwargs["include_dashboard"] = False
 
-        ray.init(**init_kwargs)
-        _RAY_SESSION_KEY = session_key
+    ray.init(**init_kwargs)
+    _RAY_SESSION_KEY = session_key
+
+
+def run_ray_data(cfg: BenchmarkConfig) -> Tuple[str, List[Dict[str, float]], float]:
+    import ray  # type: ignore
+    import ray.data  # type: ignore
+    import pandas as pd
+
+    ensure_ray_initialized(cfg, ray)
+    ctx = ray.data.DataContext.get_current()
+    ctx.enable_progress_bars = False
+    ctx.enable_operator_progress_bars = False
+
+    started = time.perf_counter()
+    run_token = uuid.uuid4().hex[:10]
+    workers = max(1, int(cfg.workers))
+
+    refs = []
+    for start, end in split_ranges(cfg.dataset_size, workers):
+        arr = np.arange(start, end, dtype=np.int64)
+        refs.append(ray.put(pd.DataFrame({"id": arr})))
+    ds = ray.data.from_pandas_refs(refs)
+    metrics = ds.map_batches(
+        process_docs_batch_ray_data,
+        batch_size=cfg.batch_docs,
+        batch_format="numpy",
+        fn_kwargs={
+            "embedding_backend": cfg.embedding_backend,
+            "embedding_model": cfg.embedding_model,
+            "embedding_dim": cfg.embedding_dim,
+            "embedding_intensity": cfg.embedding_intensity,
+            "template_pool_size": cfg.template_pool_size,
+            "max_chunks_per_doc": cfg.max_chunks_per_doc,
+            "vector_backend": cfg.vector_backend,
+            "qdrant_location": cfg.qdrant_location,
+            "collection_prefix": f"s1_{cfg.mode}_{cfg.repeat_id}_{run_token}",
+            "seed": cfg.seed,
+        },
+    )
+    rows = metrics.take_all()
+    wall_total = time.perf_counter() - started
+
+    shard_results = _aggregate_ray_data_batch_rows(rows, default_embedding_dim=cfg.embedding_dim)
+    return "ray_data", shard_results, wall_total
+
+
+def run_ray_native(cfg: BenchmarkConfig) -> Tuple[str, List[Dict[str, float]], float]:
+    import ray  # type: ignore
+
+    ensure_ray_initialized(cfg, ray)
 
     started = time.perf_counter()
     RemoteFn = ray.remote(process_shard_remote)
@@ -511,12 +661,21 @@ def run_ray_fallback(cfg: BenchmarkConfig) -> Tuple[str, List[Dict[str, float]],
 
 def run_ray(cfg: BenchmarkConfig) -> Tuple[str, List[Dict[str, float]], float]:
     try:
+        return run_ray_data(cfg)
+    except Exception as exc_data:
+        if isinstance(exc_data, ModuleNotFoundError):
+            print(f"[WARN] ray.data execution unavailable, fallback to ray task API: {exc_data}")
+        else:
+            print(f"[WARN] ray.data execution failed, fallback to ray task API: {exc_data}")
+            print(traceback.format_exc(limit=1))
+
+    try:
         return run_ray_native(cfg)
-    except Exception as exc:
-        if isinstance(exc, ModuleNotFoundError):
+    except Exception as exc_native:
+        if isinstance(exc_native, ModuleNotFoundError):
             print("[WARN] ray is not installed in current interpreter, fallback to process pool.")
         else:
-            print(f"[WARN] ray native execution failed, fallback to process pool: {exc}")
+            print(f"[WARN] ray task API execution failed, fallback to process pool: {exc_native}")
             print(traceback.format_exc(limit=1))
         return run_ray_fallback(cfg)
 

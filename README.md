@@ -117,6 +117,13 @@ Slurm-шаблоны для bootstrap Ray-кластера:
 - `slurm/ray_worker.sh`
 - `slurm/submit_cluster.sh`
 
+Примечания по исполнению Scenario 1:
+- `ray` mode использует `Ray Data` (`map_batches`) как основной путь.
+- Цепочка fallback для устойчивости: `ray_data` -> `ray_native` -> `process_pool`.
+- Для `Ray Data` нужен `pyarrow` (входит в `requirements.txt`).
+- Фактически использованный backend записывается в колонку `backend` в
+  `results/scenario1/raw/indexing_raw.csv`.
+
 ## Локальный Slurm (Docker, без sudo)
 В репозитории есть воспроизводимый однузловой профиль Slurm, который запускается в Docker.
 Используйте его, если на хосте недоступна настройка `slurmctld/slurmd`.

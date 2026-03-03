@@ -70,9 +70,12 @@ Files:
 - Figures: `results/scenario1/figures/indexing_stage_breakdown.png`
 
 ## Notes
-- `ray` mode uses native Ray when available, otherwise falls back to
-  process-pool backend and marks backend in CSV.
+- `ray` mode uses `Ray Data` (`map_batches`) as the primary execution path.
+- Fallback chain for resiliency: `ray_data` -> `ray_native` -> `process_pool`
+  (actual backend is always written to CSV in `backend` column).
 - `embedding_backend=pretrained` uses FastEmbed ONNX model
   (`embedding_model`) with deterministic text-template embedding cache.
 - `vector_backend=qdrant` uses Qdrant upsert path (`qdrant_location` in CSV).
+- `Ray Data` requires `pyarrow` in the runtime environment (included in
+  `requirements.txt`).
 - For external cluster execution, set `RAY_ADDRESS=auto` before run.
