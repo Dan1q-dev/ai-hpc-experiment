@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import csv
 from pathlib import Path
 import sys
-from typing import List
+from typing import List, Set, Tuple
 
 SRC_ROOT = Path(__file__).resolve().parents[1]
 if str(SRC_ROOT) not in sys.path:
@@ -49,6 +50,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--ray-warmup", action="store_true", default=True)
     p.add_argument("--no-ray-warmup", dest="ray_warmup", action="store_false")
     p.add_argument("--skip-baseline", action="store_true")
+    p.add_argument("--resume", action="store_true")
     p.add_argument("--clean", action="store_true")
     p.add_argument("--output", type=Path, default=RAW_DEFAULT)
     return p.parse_args()
@@ -63,6 +65,27 @@ def run_and_store(cfg: BenchmarkConfig, output: Path) -> None:
     )
 
 
+def load_completed_points(path: Path) -> Set[Tuple[str, int, int, int]]:
+    done: Set[Tuple[str, int, int, int]] = set()
+    if not path.exists():
+        return done
+
+    with path.open("r", newline="", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for row in r:
+            try:
+                key = (
+                    str(row["mode"]),
+                    int(row["dataset_size"]),
+                    int(row["workers"]),
+                    int(row["repeat_id"]),
+                )
+            except Exception:
+                continue
+            done.add(key)
+    return done
+
+
 def main() -> None:
     args = parse_args()
 
@@ -75,10 +98,14 @@ def main() -> None:
     if args.repeats <= 0:
         raise SystemExit("--repeats must be > 0")
 
+    if args.clean and args.resume:
+        raise SystemExit("--clean and --resume cannot be used together")
+
     if args.clean and args.output.exists():
         args.output.unlink()
 
     ensure_csv_header(args.output)
+    completed = load_completed_points(args.output) if args.resume else set()
 
     total_runs = len(dataset_sizes) * args.repeats * len(workers)
     if not args.skip_baseline:
@@ -86,7 +113,7 @@ def main() -> None:
 
     print(
         f"[MATRIX] Starting indexing scenario: datasets={dataset_sizes} workers={workers} repeats={args.repeats} "
-        f"skip_baseline={args.skip_baseline} total_runs={total_runs} "
+        f"skip_baseline={args.skip_baseline} resume={args.resume} completed={len(completed)} total_runs={total_runs} "
         f"embed={args.embedding_backend} vector={args.vector_backend}"
     )
 
@@ -120,28 +147,41 @@ def main() -> None:
             for repeat_id in range(1, args.repeats + 1):
                 seed = args.seed_base + repeat_id
                 if not args.skip_baseline:
-                    cfg = BenchmarkConfig(
-                        mode="baseline",
-                        dataset_size=ds,
-                        workers=1,
-                        repeat_id=repeat_id,
-                        seed=seed,
-                        batch_docs=args.batch_docs,
-                        embedding_backend=args.embedding_backend,
-                        embedding_model=args.embedding_model,
-                        embedding_dim=args.embedding_dim,
-                        embedding_intensity=args.embedding_intensity,
-                        template_pool_size=args.template_pool_size,
-                        max_chunks_per_doc=args.max_chunks_per_doc,
-                        vector_backend=args.vector_backend,
-                        qdrant_location=args.qdrant_location,
-                        ray_address="",
-                    )
-                    run_and_store(cfg, output=args.output)
-                    done += 1
-                    print(f"[MATRIX] Progress: {done}/{total_runs}")
+                    key = ("baseline", ds, 1, repeat_id)
+                    if args.resume and key in completed:
+                        done += 1
+                        print(f"[MATRIX] Skip completed point: {key}")
+                        print(f"[MATRIX] Progress: {done}/{total_runs}")
+                    else:
+                        cfg = BenchmarkConfig(
+                            mode="baseline",
+                            dataset_size=ds,
+                            workers=1,
+                            repeat_id=repeat_id,
+                            seed=seed,
+                            batch_docs=args.batch_docs,
+                            embedding_backend=args.embedding_backend,
+                            embedding_model=args.embedding_model,
+                            embedding_dim=args.embedding_dim,
+                            embedding_intensity=args.embedding_intensity,
+                            template_pool_size=args.template_pool_size,
+                            max_chunks_per_doc=args.max_chunks_per_doc,
+                            vector_backend=args.vector_backend,
+                            qdrant_location=args.qdrant_location,
+                            ray_address="",
+                        )
+                        run_and_store(cfg, output=args.output)
+                        completed.add(key)
+                        done += 1
+                        print(f"[MATRIX] Progress: {done}/{total_runs}")
 
                 for w in workers:
+                    key = ("ray", ds, w, repeat_id)
+                    if args.resume and key in completed:
+                        done += 1
+                        print(f"[MATRIX] Skip completed point: {key}")
+                        print(f"[MATRIX] Progress: {done}/{total_runs}")
+                        continue
                     cfg = BenchmarkConfig(
                         mode="ray",
                         dataset_size=ds,
@@ -160,6 +200,7 @@ def main() -> None:
                         ray_address=args.ray_address,
                     )
                     run_and_store(cfg, output=args.output)
+                    completed.add(key)
                     done += 1
                     print(f"[MATRIX] Progress: {done}/{total_runs}")
     finally:

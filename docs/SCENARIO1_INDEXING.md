@@ -35,6 +35,11 @@ Full:
 bash scripts/run_indexing_scenario.sh full
 ```
 
+Resume full after interruption (skip completed points in existing CSV):
+```bash
+SCENARIO1_RESUME=1 bash scripts/run_indexing_scenario.sh full
+```
+
 Strict stack smoke (`pretrained + qdrant`):
 ```bash
 bash scripts/run_indexing_scenario_strict.sh smoke

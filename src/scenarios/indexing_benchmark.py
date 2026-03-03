@@ -563,17 +563,39 @@ def run_ray_data(cfg: BenchmarkConfig) -> Tuple[str, List[Dict[str, float]], flo
 
     started = time.perf_counter()
     run_token = uuid.uuid4().hex[:10]
-    workers = max(1, int(cfg.workers))
+    workers_requested = max(1, int(cfg.workers))
+    cluster_cpu = int(max(1, float(ray.cluster_resources().get("CPU", workers_requested))))
+    object_store_mem = float(ray.cluster_resources().get("object_store_memory", 0.0))
+    # Empirical Ray Data reservation on this stack is around ~384MiB per active task.
+    mem_limited_workers = int(object_store_mem // (384 * 1024 * 1024)) if object_store_mem > 0 else workers_requested
+    mem_limited_workers = max(1, mem_limited_workers)
+    workers = max(1, min(workers_requested, cluster_cpu, mem_limited_workers))
+
+    if workers < workers_requested:
+        print(
+            "[WARN] limiting Ray Data parallelism due cluster resources: "
+            f"requested={workers_requested} effective={workers} "
+            f"cpu={cluster_cpu} object_store_mem={int(object_store_mem)}"
+        )
 
     refs = []
     for start, end in split_ranges(cfg.dataset_size, workers):
         arr = np.arange(start, end, dtype=np.int64)
         refs.append(ray.put(pd.DataFrame({"id": arr})))
     ds = ray.data.from_pandas_refs(refs)
+    map_exec_kwargs: Dict[str, object]
+    try:
+        from ray.data import TaskPoolStrategy  # type: ignore
+
+        map_exec_kwargs = {"compute": TaskPoolStrategy(size=workers)}
+    except Exception:
+        map_exec_kwargs = {"concurrency": workers}
+
     metrics = ds.map_batches(
         process_docs_batch_ray_data,
         batch_size=cfg.batch_docs,
         batch_format="numpy",
+        **map_exec_kwargs,
         fn_kwargs={
             "embedding_backend": cfg.embedding_backend,
             "embedding_model": cfg.embedding_model,

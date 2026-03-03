@@ -16,6 +16,7 @@ EMBEDDING_MODEL="${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}"
 VECTOR_BACKEND="${VECTOR_BACKEND:-mock}"
 TEMPLATE_POOL_SIZE="${TEMPLATE_POOL_SIZE:-2048}"
 QDRANT_LOCATION="${QDRANT_LOCATION:-:memory:}"
+SCENARIO1_RESUME="${SCENARIO1_RESUME:-0}"
 
 OUT_RAW="results/scenario1/raw/indexing_raw.csv"
 OUT_AGG_DIR="results/scenario1/aggregated"
@@ -59,9 +60,16 @@ else
 fi
 
 mkdir -p "$(dirname "${OUT_RAW}")" "${OUT_AGG_DIR}" "${OUT_FIG_DIR}"
-rm -f "${OUT_RAW}"
-rm -f "${OUT_AGG_DIR}"/*.csv
-rm -f "${OUT_FIG_DIR}"/*.png
+
+MATRIX_FLAGS=(--clean)
+if [[ "${SCENARIO1_RESUME}" == "1" ]]; then
+  MATRIX_FLAGS=(--resume)
+  echo "[SCENARIO1] resume mode: enabled (no cleanup, skipping completed points)"
+else
+  rm -f "${OUT_RAW}"
+  rm -f "${OUT_AGG_DIR}"/*.csv
+  rm -f "${OUT_FIG_DIR}"/*.png
+fi
 
 echo "[SCENARIO1] mode=${MODE} datasets=${DATASET_SIZES} workers=${WORKERS} repeats=${REPEATS}"
 echo "[SCENARIO1] embedding_backend=${EMBEDDING_BACKEND} embedding_model=${EMBEDDING_MODEL}"
@@ -81,7 +89,7 @@ echo "[SCENARIO1] vector_backend=${VECTOR_BACKEND} qdrant_location=${QDRANT_LOCA
   --vector-backend "${VECTOR_BACKEND}" \
   --qdrant-location "${QDRANT_LOCATION}" \
   --ray-address "${RAY_ADDRESS}" \
-  --clean \
+  "${MATRIX_FLAGS[@]}" \
   --output "${OUT_RAW}"
 
 "${PYTHON_BIN}" src/scenarios/validate_indexing.py \

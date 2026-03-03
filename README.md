@@ -83,6 +83,11 @@ bash scripts/run_indexing_scenario.sh full
 # или: make scenario1-full
 ```
 
+Продолжить после прерывания (resume без очистки, пропуск уже готовых точек):
+```bash
+SCENARIO1_RESUME=1 bash scripts/run_indexing_scenario.sh full
+```
+
 Smoke для strict-стека (pretrained embeddings + Qdrant vector DB):
 ```bash
 bash scripts/run_indexing_scenario_strict.sh smoke
